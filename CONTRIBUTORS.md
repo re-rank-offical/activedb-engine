@@ -1,5 +1,9 @@
 # Contributing to activedb
 
+> Language / 언어 / 语言: **English** (primary) · [한국어](#한국어-요약) · [中文](#中文概要)
+>
+> The main guide below is in English. Concise Korean and Chinese summaries are provided at the bottom of this document. For full details, refer to the English sections.
+
 ## Overview
 activedb is a high-performance graph-vector database built in Rust, optimized for RAG and AI applications. It combines graph traversals, vector similarity search, and full-text search in a single database.
 
@@ -418,3 +422,61 @@ cargo test --benches
 AGPL (Affero General Public License)
 
 For commercial support: founders@helix-db.com
+
+---
+
+## 한국어 요약
+
+### 개요
+activedb는 Rust로 구축된 고성능 그래프-벡터 데이터베이스로, RAG와 AI 애플리케이션에 최적화되어 있습니다. 그래프 탐색, 벡터 유사도 검색, 전문 검색을 하나의 데이터베이스에 통합합니다. 커뮤니티의 기여를 환영합니다.
+
+### 기여 방법
+- **이슈 보고**: 중복 방지를 위해 기존 GitHub Issues를 먼저 확인하고, 명확한 제목과 재현 단계, 시스템 정보(OS, Rust 버전, activedb 버전)를 포함해 주세요.
+- **Pull Request 워크플로우**: 저장소를 포크 → `main`에서 피처 브랜치 생성 → 변경사항 작성 → 명확한 커밋 메시지 작성 → 포크에 푸시 → `main`을 대상으로 PR 오픈 → 리뷰 피드백에 응답.
+- **PR 지침**: 관련 이슈를 링크하고, 모든 테스트가 통과하며, 새 기능에는 테스트를 추가하고, PR은 단일 기능/수정에 집중하며, Conventional Commits 형식의 커밋 메시지를 작성하세요.
+
+### 개발 환경
+- **필수**: Rust 1.75.0 이상, Cargo, Git
+- **선택**: cargo-watch, cargo-nextest, rust-analyzer
+- **빌드**: `cargo build` / 릴리스는 `cargo build --release`
+- **로컬 실행**: `cargo install --path activedb-cli` 후 `activedb init` 및 `activedb push dev`
+
+### 테스트
+`cargo test --workspace`로 전체 테스트를 실행합니다. 단위 테스트, 통합 테스트, CLI 테스트, AQL E2E 테스트, 벤치마크로 구성되어 있습니다. 새 기능에는 반드시 테스트를 작성하고, 성능에 민감한 코드는 최적화 전에 벤치마크를 추가하세요.
+
+### 소통 채널
+- **Discord**: 실시간 논의 및 지원
+- **GitHub Issues**: 버그 리포트 및 기능 요청
+- **문서**: 포괄적인 가이드 제공
+
+### 코드 리뷰 기준
+정확성, 충분한 테스트, 코드 스타일(Rust 및 activedb 컨벤션), 성능, 문서화, 단일 범위에 초점을 둡니다.
+
+---
+
+## 中文概要
+
+### 概述
+activedb 是使用 Rust 构建的高性能图-向量数据库,专为 RAG 和 AI 应用优化。它在单一数据库中结合了图遍历、向量相似度搜索和全文检索。我们欢迎社区贡献。
+
+### 贡献方式
+- **报告问题**: 为避免重复,请先检查现有的 GitHub Issues,并提供清晰的标题、复现步骤以及系统信息(操作系统、Rust 版本、activedb 版本)。
+- **Pull Request 工作流**: Fork 仓库 → 从 `main` 创建功能分支 → 进行更改 → 编写清晰的提交信息 → 推送到您的 fork → 针对 `main` 开启 PR → 响应评审反馈。
+- **PR 准则**: 链接相关 issue,确保所有测试通过,为新功能添加测试,PR 专注于单一功能或修复,使用 Conventional Commits 格式的提交信息。
+
+### 开发环境
+- **必需**: Rust 1.75.0 或更新版本、Cargo、Git
+- **可选**: cargo-watch、cargo-nextest、rust-analyzer
+- **构建**: `cargo build`;发布版为 `cargo build --release`
+- **本地运行**: `cargo install --path activedb-cli`,然后执行 `activedb init` 和 `activedb push dev`
+
+### 测试
+使用 `cargo test --workspace` 运行全部测试。测试包含单元测试、集成测试、CLI 测试、AQL 端到端测试和基准测试。新功能必须编写测试;在优化对性能敏感的代码前,请先添加基准测试。
+
+### 沟通渠道
+- **Discord**: 实时讨论与支持
+- **GitHub Issues**: Bug 报告与功能请求
+- **文档**: 提供完整的使用指南
+
+### 代码评审标准
+正确性、充分的测试、代码风格(Rust 与 activedb 约定)、性能、文档质量,以及专注于单一范围。

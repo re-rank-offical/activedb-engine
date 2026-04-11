@@ -1,4 +1,12 @@
-## **Helix Engine Tests**
+## **activedb Engine Tests**
+
+> Language / 언어 / 语言: **English** (primary) · 한국어 · 中文
+>
+> This document lists engine test functions. Test function names are code identifiers and kept in English. A brief multilingual overview is provided below.
+>
+> **한국어:** 이 문서는 엔진 테스트 함수들의 카탈로그입니다. 테스트는 Traversal, Vector, HNSW, BM25, Storage Core, Embedding Provider, 그리고 Protocol(Date / ID) 도메인으로 분류됩니다. 테스트 함수명은 코드 식별자이므로 번역하지 않고 그대로 둡니다.
+>
+> **中文:** 本文档罗列引擎测试函数。测试按 Traversal、Vector、HNSW、BM25、Storage Core、Embedding Provider 以及 Protocol(Date / ID)等领域组织。测试函数名为代码标识符,故保持英文原样。
 
 ### **Traversal Tests** (`helix-db/src/helix_engine/tests/traversal_tests/`)
 
