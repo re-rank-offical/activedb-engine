@@ -41,7 +41,8 @@ pub(super) trait HeapOps<'a, T> {
     where
         T: Ord;
 
-    /// Get the maximum element from the heap
+    /// Get the maximum element from the heap (nearest, due to reversed ordering).
+    #[allow(dead_code)] // general-purpose helper; search uses `iter().min()` for the farthest
     fn get_max<'q>(&'q self) -> Option<&'a T>
     where
         T: Ord,

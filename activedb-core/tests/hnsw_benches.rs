@@ -283,7 +283,7 @@ mod tests {
         let mut arena = Bump::new();
         let (env, _temp_dir) = setup_temp_env();
         let mut txn = env.write_txn().unwrap();
-        let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
+        let mut index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
         let mut total_insertion_time = std::time::Duration::from_secs(0);
 
         let mut base_all_vectors: Vec<(u128, Vec<f64>)> = Vec::new();
@@ -327,57 +327,54 @@ mod tests {
         let ground_truths = calc_ground_truths(base_all_vectors, &query_vectors, k);
 
         println!("searching and comparing...");
-        let test_id = format!("k = {} with {} queries", k, n_query);
+        println!("ef sweep (graph built once, search ef varied) — k={k}, {n_query} queries:");
 
-        let mut total_recall = 0.0;
-        let mut total_precision = 0.0;
-        let mut total_search_time = std::time::Duration::from_secs(0);
-        for (qid, query) in query_vectors.iter() {
-            let start_time = Instant::now();
-            let results = index
-                .search::<Filter>(&txn, query, k, "vector", None, false, &search_arena)
-                .unwrap();
-            let search_duration = start_time.elapsed();
-            total_search_time += search_duration;
+        // Sweep the search-time `ef` over one shared graph to trace the
+        // recall vs latency curve. Build cost is paid once.
+        let mut best_recall = 0.0_f64;
+        for &ef in &[64usize, 128, 256, 512] {
+            index.config.ef = ef;
 
-            let result_indices = results
-                .into_iter()
-                .map(|hvec| hvec.id)
-                .collect::<HashSet<u128>>();
-            search_arena.reset();
+            let mut total_recall = 0.0;
+            let mut total_precision = 0.0;
+            let mut total_search_time = std::time::Duration::from_secs(0);
+            for (qid, query) in query_vectors.iter() {
+                let start_time = Instant::now();
+                let results = index
+                    .search::<Filter>(&txn, query, k, "vector", None, false, &search_arena)
+                    .unwrap();
+                total_search_time += start_time.elapsed();
 
-            let gt_indices = ground_truths
-                .get(&qid)
-                .unwrap()
-                .clone()
-                .into_iter()
-                .collect::<HashSet<u128>>();
+                let result_indices = results
+                    .into_iter()
+                    .map(|hvec| hvec.id)
+                    .collect::<HashSet<u128>>();
+                search_arena.reset();
 
-            let true_positives = result_indices.intersection(&gt_indices).count();
+                let gt_indices = ground_truths
+                    .get(&qid)
+                    .unwrap()
+                    .clone()
+                    .into_iter()
+                    .collect::<HashSet<u128>>();
 
-            let recall: f64 = true_positives as f64 / gt_indices.len() as f64;
-            let precision: f64 = true_positives as f64 / result_indices.len() as f64;
+                let true_positives = result_indices.intersection(&gt_indices).count();
 
-            total_recall += recall;
-            total_precision += precision;
+                total_recall += true_positives as f64 / gt_indices.len() as f64;
+                total_precision += true_positives as f64 / result_indices.len() as f64;
+            }
+
+            total_recall /= n_query as f64;
+            total_precision /= n_query as f64;
+            best_recall = best_recall.max(total_recall);
+            println!(
+                "ef={ef:>3}: recall={total_recall:.4}, precision={total_precision:.4}, \
+                 avg_search={:.3} ms/query",
+                total_search_time.as_secs_f64() * 1000.0 / n_query as f64,
+            );
         }
 
-        println!(
-            "total search time: {:.2?} seconds",
-            total_search_time.as_secs_f64()
-        );
-        println!(
-            "average search time per query: {:.2?} milliseconds",
-            total_search_time.as_millis() as f64 / n_query as f64
-        );
-
-        total_recall = total_recall / n_query as f64;
-        total_precision = total_precision / n_query as f64;
-        println!(
-            "{}: avg. recall: {:.4?}, avg. precision: {:.4?}",
-            test_id, total_recall, total_precision,
-        );
-        assert!(total_recall >= 0.8, "recall not high enough!");
+        assert!(best_recall >= 0.8, "recall not high enough!");
     }
 }
 

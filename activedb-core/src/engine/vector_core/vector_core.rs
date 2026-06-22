@@ -337,16 +337,22 @@ impl VectorCore {
         visited.insert(entry_point.id);
 
         while let Some(curr_cand) = candidates.pop() {
+            // Stop once the nearest unexplored candidate is farther than the
+            // worst (farthest) result we already hold — no improvement is possible.
+            // NOTE: the heap orders by reversed distance, so the farthest element
+            // is the Ord-minimum (`iter().min()`), not `get_max()` (which is nearest).
             if results.len() >= ef
                 && results
-                    .get_max()
+                    .iter()
+                    .min()
                     .is_none_or(|f| curr_cand.distance > f.get_distance())
             {
                 break;
             }
 
+            // Admit a neighbour only if it is nearer than the current farthest result.
             let max_distance = if results.len() >= ef {
-                results.get_max().map(|f| f.get_distance())
+                results.iter().min().map(|f| f.get_distance())
             } else {
                 None
             };
