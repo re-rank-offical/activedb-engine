@@ -43,10 +43,13 @@ impl<'db, 'arena, 'txn, I: Iterator<Item = Result<TraversalValue<'arena>, GraphE
     where
         F: Fn(&HVector<'arena>, &RoTxn<'db>) -> bool,
     {
+        // Vectors are stored as f32; convert the f64 input once into the arena.
+        let query_f32: &'arena [f32] =
+            self.arena.alloc_slice_fill_iter(query.iter().map(|&x| x as f32));
         let vector: Result<HVector<'arena>, crate::engine::types::VectorError> = self
             .storage
             .vectors
-            .insert::<F>(self.txn, label, query, properties, self.arena);
+            .insert::<F>(self.txn, label, query_f32, properties, self.arena);
 
         let result = match vector {
             Ok(vector) => Ok(TraversalValue::Vector(vector)),

@@ -762,7 +762,10 @@ fn test_upsert_v_creates_new_vector_when_none_exists() {
     assert_eq!(result.len(), 1);
     if let TraversalValue::Vector(vector) = &result[0] {
         assert_eq!(vector.label, "embedding");
-        assert_eq!(vector.data, &query);
+        assert_eq!(
+            vector.data,
+            query.iter().map(|&x| x as f32).collect::<Vec<f32>>().as_slice()
+        );
         assert_eq!(vector.get_property("model").unwrap(), &Value::from("bert"));
         assert_eq!(vector.get_property("version").unwrap(), &Value::from(2));
     } else {
@@ -927,7 +930,10 @@ fn test_upsert_v_with_defaults_applies_on_create_and_explicit_wins() {
     assert_eq!(result.len(), 1);
     if let TraversalValue::Vector(vector) = &result[0] {
         assert_eq!(vector.label, "embedding");
-        assert_eq!(vector.data, &query);
+        assert_eq!(
+            vector.data,
+            query.iter().map(|&x| x as f32).collect::<Vec<f32>>().as_slice()
+        );
         assert_eq!(
             vector.get_property("model").unwrap(),
             &Value::from("text-embedding")

@@ -226,7 +226,7 @@ pub fn create_arena_vector<'arena>(
     version: u8,
     deleted: bool,
     level: usize,
-    data: &[f64],
+    data: &[f32],
     props: Vec<(&str, Value)>,
 ) -> HVector<'arena> {
     let label_ref = arena.alloc_str(label);
@@ -269,13 +269,13 @@ pub fn create_simple_vector<'arena>(
     arena: &'arena Bump,
     id: u128,
     label: &str,
-    data: &[f64],
+    data: &[f32],
 ) -> HVector<'arena> {
     create_arena_vector(arena, id, label, 1, false, 0, data, vec![])
 }
 
 /// Creates vector data as raw bytes
-pub fn create_vector_bytes(data: &[f64]) -> Vec<u8> {
+pub fn create_vector_bytes(data: &[f32]) -> Vec<u8> {
     bytemuck::cast_slice(data).to_vec()
 }
 

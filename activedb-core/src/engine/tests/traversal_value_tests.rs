@@ -86,7 +86,7 @@ fn create_test_edge_with_props<'a>(
     }
 }
 
-fn create_test_vector<'a>(arena: &'a Bump, id: u128, label: &str, data: &[f64]) -> HVector<'a> {
+fn create_test_vector<'a>(arena: &'a Bump, id: u128, label: &str, data: &[f32]) -> HVector<'a> {
     HVector {
         id,
         label: arena.alloc_str(label),
@@ -103,7 +103,7 @@ fn create_test_vector_with_props<'a>(
     arena: &'a Bump,
     id: u128,
     label: &str,
-    data: &[f64],
+    data: &[f32],
     props: Vec<(&str, Value)>,
 ) -> HVector<'a> {
     let properties = ImmutablePropertiesMap::new(
@@ -349,7 +349,7 @@ fn test_data_vector_without_data_returns_empty_slice() {
     let arena = Bump::new();
     let vector = create_test_vector_without_data(&arena, 1, "Vec");
     let tv = TraversalValue::VectorNodeWithoutVectorData(vector);
-    assert_eq!(tv.data(), &[] as &[f64]);
+    assert_eq!(tv.data(), &[] as &[f32]);
 }
 
 #[test]
@@ -706,7 +706,7 @@ fn test_vector_with_empty_data() {
 #[test]
 fn test_vector_with_large_data() {
     let arena = Bump::new();
-    let large_data: Vec<f64> = (0..1024).map(|i| i as f64).collect();
+    let large_data: Vec<f32> = (0..1024).map(|i| i as f32).collect();
     let vector = create_test_vector(&arena, 1, "LargeVec", &large_data);
     let tv = TraversalValue::Vector(vector);
     assert_eq!(tv.data().len(), 1024);

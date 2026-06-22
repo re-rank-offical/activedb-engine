@@ -703,11 +703,14 @@ impl<'db, 'arena, 'txn, I: Iterator<Item = Result<TraversalValue<'arena>, GraphE
                         }
                     };
 
+                    // Vectors are stored as f32; convert the f64 input into the arena.
+                    let query_f32: &'arena [f32] =
+                        self.arena.alloc_slice_fill_iter(query.iter().map(|&x| x as f32));
                     let vector = self
                         .storage
                         .vectors
                         .insert::<fn(&HVector, &heed3::RoTxn) -> bool>(
-                            self.txn, label, query, properties, self.arena,
+                            self.txn, label, query_f32, properties, self.arena,
                         )?;
 
                     for (k, v) in create_props.iter() {
@@ -743,8 +746,8 @@ impl<'db, 'arena, 'txn, I: Iterator<Item = Result<TraversalValue<'arena>, GraphE
                 Some(Ok(TraversalValue::VectorNodeWithoutVectorData(vector_without_data))) => {
                     // Convert VectorWithoutData to HVector using From impl
                     let mut vector: HVector = vector_without_data.into();
-                    // Set the vector data from query parameter
-                    vector.data = query;
+                    // Set the vector data from query parameter (stored as f32).
+                    vector.data = self.arena.alloc_slice_fill_iter(query.iter().map(|&x| x as f32));
 
                     match vector.properties {
                         None => {

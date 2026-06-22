@@ -176,7 +176,7 @@ mod tests {
     use crate::engine::vector_core::vector::HVector;
     use bumpalo::Bump;
 
-    fn alloc_vector<'a>(arena: &'a Bump, data: &[f64]) -> HVector<'a> {
+    fn alloc_vector<'a>(arena: &'a Bump, data: &[f32]) -> HVector<'a> {
         let slice = arena.alloc_slice_copy(data);
         HVector::from_slice("test_vector", 0, slice)
     }

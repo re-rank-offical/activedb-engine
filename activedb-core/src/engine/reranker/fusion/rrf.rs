@@ -151,7 +151,7 @@ mod tests {
     use crate::{engine::vector_core::vector::HVector, utils::items::Node};
     use bumpalo::Bump;
 
-    fn alloc_vector<'a>(arena: &'a Bump, data: &[f64]) -> HVector<'a> {
+    fn alloc_vector<'a>(arena: &'a Bump, data: &[f32]) -> HVector<'a> {
         let slice = arena.alloc_slice_copy(data);
         HVector::from_slice("test_vector", 0, slice)
     }
@@ -589,7 +589,7 @@ mod tests {
 
         let vectors: Vec<TraversalValue> = (0..3)
             .map(|i| {
-                let mut v = alloc_vector(&arena, &[1.0 * i as f64, 2.0 * i as f64]);
+                let mut v = alloc_vector(&arena, &[1.0 * i as f32, 2.0 * i as f32]);
                 v.id = i as u128;
                 TraversalValue::Vector(v)
             })

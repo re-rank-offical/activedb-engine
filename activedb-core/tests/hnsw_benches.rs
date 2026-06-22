@@ -59,8 +59,8 @@ mod tests {
 
     /// Returns query ids and their associated closest k vectors (by vec id)
     fn calc_ground_truths(
-        base_vectors: Vec<(u128, Vec<f64>)>,
-        query_vectors: &Vec<(usize, Vec<f64>)>,
+        base_vectors: Vec<(u128, Vec<f32>)>,
+        query_vectors: &Vec<(usize, Vec<f32>)>,
         k: usize,
     ) -> HashMap<usize, Vec<u128>> {
         query_vectors
@@ -86,7 +86,7 @@ mod tests {
             .collect()
     }
 
-    fn load_dbpedia_vectors(limit: usize) -> Result<Vec<Vec<f64>>, PolarsError> {
+    fn load_dbpedia_vectors(limit: usize) -> Result<Vec<Vec<f32>>, PolarsError> {
         // https://huggingface.co/datasets/KShivendu/dbpedia-entities-openai-1M
         if limit > 1_000_000 {
             return Err(PolarsError::OutOfBounds(
@@ -117,9 +117,9 @@ mod tests {
                     }
 
                     let embedding = embedding.unwrap();
-                    let f64_series = embedding.cast(&DataType::Float64).unwrap();
-                    let chunked = f64_series.f64().unwrap();
-                    let vector: Vec<f64> = chunked.into_no_null_iter().collect();
+                    let f32_series = embedding.cast(&DataType::Float32).unwrap();
+                    let chunked = f32_series.f32().unwrap();
+                    let vector: Vec<f32> = chunked.into_no_null_iter().collect();
 
                     all_vectors.push(vector);
 
@@ -275,7 +275,7 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(i, x)| (i + 1, x.clone()))
-            .collect::<Vec<(usize, Vec<f64>)>>();
+            .collect::<Vec<(usize, Vec<f32>)>>();
 
         println!("num of base vecs: {}", base_vectors.len());
         println!("num of query vecs: {}", query_vectors.len());
@@ -286,7 +286,7 @@ mod tests {
         let mut index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
         let mut total_insertion_time = std::time::Duration::from_secs(0);
 
-        let mut base_all_vectors: Vec<(u128, Vec<f64>)> = Vec::new();
+        let mut base_all_vectors: Vec<(u128, Vec<f32>)> = Vec::new();
         let over_all_time = Instant::now();
         for (i, data) in base_vectors.iter().enumerate() {
             let start_time = Instant::now();

@@ -40,11 +40,14 @@ impl<'db, 'arena, 'txn, I: Iterator<Item = Result<TraversalValue<'arena>, GraphE
         K: TryInto<usize>,
         K::Error: std::fmt::Debug,
     {
+        // Vectors are stored as f32; convert the f64 query once into the arena.
+        let query_f32: &'arena [f32] =
+            self.arena.alloc_slice_fill_iter(query.iter().map(|&x| x as f32));
         let iter = self
             .inner
-            .filter_map(|v| match v {
+            .filter_map(move |v| match v {
                 Ok(TraversalValue::Vector(mut v)) => {
-                    let d = cosine_similarity(v.data, query).unwrap();
+                    let d = cosine_similarity(v.data, query_f32).unwrap();
                     v.set_distance(d);
                     Some(v)
                 }

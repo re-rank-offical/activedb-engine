@@ -48,9 +48,12 @@ impl<'db, 'arena, 'txn, I: Iterator<Item = Result<TraversalValue<'arena>, GraphE
         K: TryInto<usize>,
         K::Error: std::fmt::Debug,
     {
+        // Vectors are stored as f32; convert the f64 query once into the arena.
+        let query_f32: &'arena [f32] =
+            self.arena.alloc_slice_fill_iter(query.iter().map(|&x| x as f32));
         let vectors = self.storage.vectors.search(
             self.txn,
-            query,
+            query_f32,
             k.try_into().unwrap(),
             label,
             filter,

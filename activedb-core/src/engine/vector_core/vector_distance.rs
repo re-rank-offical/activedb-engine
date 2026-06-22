@@ -22,9 +22,11 @@ impl<'a> DistanceCalc for HVector<'a> {
     }
 }
 
+/// Cosine similarity over f32 vectors. Computed in f32 (AVX2 when available),
+/// returned as f64 to match the engine's distance plumbing.
 #[inline]
 #[cfg(feature = "cosine")]
-pub fn cosine_similarity(from: &[f64], to: &[f64]) -> Result<f64, VectorError> {
+pub fn cosine_similarity(from: &[f32], to: &[f32]) -> Result<f64, VectorError> {
     if from.len() != to.len() {
         println!("mis-match in vector dimensions!\n{} != {}", from.len(), to.len());
         return Err(VectorError::InvalidVectorLength);
@@ -36,21 +38,21 @@ pub fn cosine_similarity(from: &[f64], to: &[f64]) -> Result<f64, VectorError> {
     {
         if std::is_x86_feature_detected!("avx2") {
             // SAFETY: only reached after confirming AVX2 support at runtime.
-            return Ok(unsafe { cosine_similarity_avx2(from, to) });
+            return Ok(unsafe { cosine_similarity_avx2(from, to) } as f64);
         }
     }
 
-    Ok(cosine_similarity_scalar(from, to))
+    Ok(cosine_similarity_scalar(from, to) as f64)
 }
 
 /// Scalar cosine similarity. Returns -1.0 if either vector has zero magnitude.
 #[inline]
 #[cfg(feature = "cosine")]
-fn cosine_similarity_scalar(from: &[f64], to: &[f64]) -> f64 {
+fn cosine_similarity_scalar(from: &[f32], to: &[f32]) -> f32 {
     let len = from.len();
-    let mut dot_product = 0.0;
-    let mut magnitude_a = 0.0;
-    let mut magnitude_b = 0.0;
+    let mut dot_product = 0.0f32;
+    let mut magnitude_a = 0.0f32;
+    let mut magnitude_b = 0.0f32;
 
     const CHUNK_SIZE: usize = 8;
     let chunks = len / CHUNK_SIZE;
@@ -61,21 +63,13 @@ fn cosine_similarity_scalar(from: &[f64], to: &[f64]) -> f64 {
         let a_chunk = &from[offset..offset + CHUNK_SIZE];
         let b_chunk = &to[offset..offset + CHUNK_SIZE];
 
-        let mut local_dot = 0.0;
-        let mut local_mag_a = 0.0;
-        let mut local_mag_b = 0.0;
-
         for j in 0..CHUNK_SIZE {
             let a_val = a_chunk[j];
             let b_val = b_chunk[j];
-            local_dot += a_val * b_val;
-            local_mag_a += a_val * a_val;
-            local_mag_b += b_val * b_val;
+            dot_product += a_val * b_val;
+            magnitude_a += a_val * a_val;
+            magnitude_b += b_val * b_val;
         }
-
-        dot_product += local_dot;
-        magnitude_a += local_mag_a;
-        magnitude_b += local_mag_b;
     }
 
     let remainder_offset = chunks * CHUNK_SIZE;
@@ -94,59 +88,57 @@ fn cosine_similarity_scalar(from: &[f64], to: &[f64]) -> f64 {
     dot_product / (magnitude_a.sqrt() * magnitude_b.sqrt())
 }
 
-// SIMD implementation using AVX2 (256-bit vectors), selected at runtime.
+// SIMD implementation using AVX2 (256-bit = 8 x f32), selected at runtime.
 #[cfg(all(feature = "cosine", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn cosine_similarity_avx2(a: &[f64], b: &[f64]) -> f64 {
+unsafe fn cosine_similarity_avx2(a: &[f32], b: &[f32]) -> f32 {
     use std::arch::x86_64::*;
 
     let len = a.len();
-    let chunks = len / 4; // AVX2 processes 4 f64 values at once
+    let chunks = len / 8; // AVX2 processes 8 f32 values at once
 
     unsafe {
-        let mut dot_product = _mm256_setzero_pd();
-        let mut magnitude_a = _mm256_setzero_pd();
-        let mut magnitude_b = _mm256_setzero_pd();
+        let mut dot = _mm256_setzero_ps();
+        let mut mag_a = _mm256_setzero_ps();
+        let mut mag_b = _mm256_setzero_ps();
 
         for i in 0..chunks {
-            let offset = i * 4;
-            let a_chunk = _mm256_loadu_pd(a.as_ptr().add(offset));
-            let b_chunk = _mm256_loadu_pd(b.as_ptr().add(offset));
+            let offset = i * 8;
+            let av = _mm256_loadu_ps(a.as_ptr().add(offset));
+            let bv = _mm256_loadu_ps(b.as_ptr().add(offset));
 
-            dot_product = _mm256_add_pd(dot_product, _mm256_mul_pd(a_chunk, b_chunk));
-            magnitude_a = _mm256_add_pd(magnitude_a, _mm256_mul_pd(a_chunk, a_chunk));
-            magnitude_b = _mm256_add_pd(magnitude_b, _mm256_mul_pd(b_chunk, b_chunk));
+            dot = _mm256_add_ps(dot, _mm256_mul_ps(av, bv));
+            mag_a = _mm256_add_ps(mag_a, _mm256_mul_ps(av, av));
+            mag_b = _mm256_add_ps(mag_b, _mm256_mul_ps(bv, bv));
         }
 
-        let mut dot = horizontal_sum_pd(dot_product);
-        let mut mag_a = horizontal_sum_pd(magnitude_a);
-        let mut mag_b = horizontal_sum_pd(magnitude_b);
+        let mut dot_s = horizontal_sum_ps(dot);
+        let mut mag_a_s = horizontal_sum_ps(mag_a);
+        let mut mag_b_s = horizontal_sum_ps(mag_b);
 
-        // Handle the tail elements that don't fill a 4-wide lane.
-        for i in (chunks * 4)..len {
+        // Handle the tail elements that don't fill an 8-wide lane.
+        for i in (chunks * 8)..len {
             let a_val = *a.get_unchecked(i);
             let b_val = *b.get_unchecked(i);
-            dot += a_val * b_val;
-            mag_a += a_val * a_val;
-            mag_b += b_val * b_val;
+            dot_s += a_val * b_val;
+            mag_a_s += a_val * a_val;
+            mag_b_s += b_val * b_val;
         }
 
-        if mag_a == 0.0 || mag_b == 0.0 {
+        if mag_a_s == 0.0 || mag_b_s == 0.0 {
             return -1.0;
         }
 
-        dot / (mag_a.sqrt() * mag_b.sqrt())
+        dot_s / (mag_a_s.sqrt() * mag_b_s.sqrt())
     }
 }
 
-// Sum the 4 doubles in an AVX2 vector down to a scalar.
+// Sum the 8 floats in an AVX2 vector down to a scalar.
 #[cfg(all(feature = "cosine", target_arch = "x86_64"))]
 #[target_feature(enable = "avx2")]
-unsafe fn horizontal_sum_pd(v: std::arch::x86_64::__m256d) -> f64 {
+unsafe fn horizontal_sum_ps(v: std::arch::x86_64::__m256) -> f32 {
     use std::arch::x86_64::*;
-    // Add the high 128 bits to the low 128 bits.
-    let sum_hi_lo = _mm_add_pd(_mm256_castpd256_pd128(v), _mm256_extractf128_pd(v, 1));
-    // Add the high 64 bits to the low 64 bits.
-    let sum = _mm_add_sd(sum_hi_lo, _mm_unpackhi_pd(sum_hi_lo, sum_hi_lo));
-    _mm_cvtsd_f64(sum)
+    let mut tmp = [0.0f32; 8];
+    unsafe { _mm256_storeu_ps(tmp.as_mut_ptr(), v) };
+    tmp.iter().sum()
 }

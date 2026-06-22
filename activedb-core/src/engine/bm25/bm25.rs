@@ -964,7 +964,8 @@ impl HybridSearch for ActiveDBGraphStorage {
             task::spawn_blocking(move || -> Result<Option<Vec<(u128, f64)>>, GraphError> {
                 let txn = graph_env_vector.read_txn()?;
                 let arena = Bump::new();
-                let query_slice = arena.alloc_slice_copy(query_vector_owned.as_slice());
+                let query_slice =
+                    arena.alloc_slice_fill_iter(query_vector_owned.iter().map(|&x| x as f32));
                 let results = self.vectors.search::<fn(&HVector, &RoTxn) -> bool>(
                     &txn,
                     query_slice,

@@ -34,7 +34,7 @@ pub struct HVector<'arena> {
     /// The distance of the HVector
     pub distance: Option<f64>,
     /// The actual vector
-    pub data: &'arena [f64],
+    pub data: &'arena [f32],
     /// The properties of the HVector
     pub properties: Option<ImmutablePropertiesMap<'arena>>,
 }
@@ -111,7 +111,7 @@ impl Debug for HVector<'_> {
 
 impl<'arena> HVector<'arena> {
     #[inline(always)]
-    pub fn from_slice(label: &'arena str, level: usize, data: &'arena [f64]) -> Self {
+    pub fn from_slice(label: &'arena str, level: usize, data: &'arena [f32]) -> Self {
         let id = v6_uuid();
         HVector {
             id,
@@ -171,26 +171,26 @@ impl<'arena> HVector<'arena> {
     pub fn cast_raw_vector_data<'txn>(
         arena: &'arena bumpalo::Bump,
         raw_vector_data: &'txn [u8],
-    ) -> &'arena [f64] {
+    ) -> &'arena [f32] {
         assert!(!raw_vector_data.is_empty(), "raw_vector_data.len() == 0");
         assert!(
-            raw_vector_data.len().is_multiple_of(mem::size_of::<f64>()),
-            "raw_vector_data bytes len is not a multiple of size_of::<f64>()"
+            raw_vector_data.len().is_multiple_of(mem::size_of::<f32>()),
+            "raw_vector_data bytes len is not a multiple of size_of::<f32>()"
         );
-        let dimensions = raw_vector_data.len() / mem::size_of::<f64>();
+        let dimensions = raw_vector_data.len() / mem::size_of::<f32>();
 
         assert!(
             raw_vector_data.len().is_multiple_of(dimensions),
             "raw_vector_data does not have the exact required number of dimensions"
         );
 
-        let layout = alloc::Layout::array::<f64>(dimensions)
+        let layout = alloc::Layout::array::<f32>(dimensions)
             .expect("vector_data array arithmetic overflow or total size exceeds isize::MAX");
 
         let vector_data: ptr::NonNull<u8> = arena.alloc_layout(layout);
 
         // 'arena because the destination pointer is allocated in the arena
-        let data: &'arena [f64] = unsafe {
+        let data: &'arena [f32] = unsafe {
             // SAFETY:
             // - We assert data is present and that we are within bounds in asserts above
             ptr::copy_nonoverlapping(
@@ -199,8 +199,8 @@ impl<'arena> HVector<'arena> {
                 raw_vector_data.len(),
             );
 
-            // We allocated with the layout of an f64 array
-            let vector_data: ptr::NonNull<f64> = vector_data.cast();
+            // We allocated with the layout of an f32 array
+            let vector_data: ptr::NonNull<f32> = vector_data.cast();
 
             // SAFETY:
             // - `vector_data`` is guaranteed to be valid by being NonNull

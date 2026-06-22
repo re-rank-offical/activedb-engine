@@ -87,7 +87,7 @@ impl MMRReranker {
         &self,
         item: &'a TraversalValue<'a>,
         _arena: &'a bumpalo::Bump,
-    ) -> RerankerResult<&'a [f64]> {
+    ) -> RerankerResult<&'a [f32]> {
         match item {
             TraversalValue::Vector(v) => Ok(v.data),
             _ => Err(RerankerError::TextExtractionError(
@@ -98,7 +98,7 @@ impl MMRReranker {
     }
 
     /// Calculate similarity between two items.
-    fn calculate_similarity(&self, item1: &[f64], item2: &[f64]) -> RerankerResult<f64> {
+    fn calculate_similarity(&self, item1: &[f32], item2: &[f32]) -> RerankerResult<f64> {
         if item1.len() != item2.len() {
             return Err(RerankerError::InvalidParameter(
                 "Vector dimensions must match".to_string(),
@@ -108,9 +108,13 @@ impl MMRReranker {
         let distance = match self.distance_method {
             DistanceMethod::Cosine => {
                 // Calculate cosine similarity (1 - cosine distance)
-                let dot_product: f64 = item1.iter().zip(item2.iter()).map(|(a, b)| a * b).sum();
-                let norm1: f64 = item1.iter().map(|x| x * x).sum::<f64>().sqrt();
-                let norm2: f64 = item2.iter().map(|x| x * x).sum::<f64>().sqrt();
+                let dot_product: f64 = item1
+                    .iter()
+                    .zip(item2.iter())
+                    .map(|(a, b)| *a as f64 * *b as f64)
+                    .sum();
+                let norm1: f64 = item1.iter().map(|x| *x as f64 * *x as f64).sum::<f64>().sqrt();
+                let norm2: f64 = item2.iter().map(|x| *x as f64 * *x as f64).sum::<f64>().sqrt();
 
                 if norm1 == 0.0 || norm2 == 0.0 {
                     0.0
@@ -123,13 +127,17 @@ impl MMRReranker {
                 let dist_sq: f64 = item1
                     .iter()
                     .zip(item2.iter())
-                    .map(|(a, b)| (a - b).powi(2))
+                    .map(|(a, b)| (*a as f64 - *b as f64).powi(2))
                     .sum();
                 (-dist_sq.sqrt()).exp()
             }
             DistanceMethod::DotProduct => {
                 // Dot product as similarity
-                item1.iter().zip(item2.iter()).map(|(a, b)| a * b).sum()
+                item1
+                    .iter()
+                    .zip(item2.iter())
+                    .map(|(a, b)| *a as f64 * *b as f64)
+                    .sum()
             }
         };
 
@@ -146,6 +154,12 @@ impl MMRReranker {
         if items.is_empty() {
             return Err(RerankerError::EmptyInput);
         }
+
+        // Vectors are stored as f32; convert the query once to match.
+        let query_f32: Option<Vec<f32>> = self
+            .query_vector
+            .as_ref()
+            .map(|q| q.iter().map(|&x| x as f32).collect());
 
         let n = items.len();
         let mut selected: Vec<TraversalValue<'arena>> = Vec::with_capacity(n);
@@ -174,7 +188,7 @@ impl MMRReranker {
                 let item_vec = self.extract_vector_data(item, &arena)?;
 
                 // Calculate relevance term
-                let relevance = if let Some(query) = &self.query_vector {
+                let relevance = if let Some(query) = &query_f32 {
                     self.calculate_similarity(item_vec, query)?
                 } else {
                     *relevance_score // Use original score as relevance
@@ -240,7 +254,7 @@ mod tests {
     use crate::engine::vector_core::vector::HVector;
     use bumpalo::Bump;
 
-    fn alloc_vector<'a>(arena: &'a Bump, data: &[f64]) -> HVector<'a> {
+    fn alloc_vector<'a>(arena: &'a Bump, data: &[f32]) -> HVector<'a> {
         let slice = arena.alloc_slice_copy(data);
         HVector::from_slice("test_vector", 0, slice)
     }
@@ -649,7 +663,7 @@ mod tests {
         let vectors: Vec<TraversalValue> = (0..100)
             .map(|i| {
                 let angle = (i as f64) * 0.1;
-                let mut v = alloc_vector(&arena, &[angle.cos(), angle.sin()]);
+                let mut v = alloc_vector(&arena, &[angle.cos() as f32, angle.sin() as f32]);
                 v.distance = Some(1.0 - i as f64 / 100.0);
                 v.id = i as u128;
                 TraversalValue::Vector(v)
@@ -705,7 +719,7 @@ mod tests {
 
         let vectors: Vec<TraversalValue> = (0..3)
             .map(|i| {
-                let mut v = alloc_vector(&arena, &[1.0 * i as f64, 0.0]);
+                let mut v = alloc_vector(&arena, &[1.0 * i as f32, 0.0]);
                 v.distance = Some(1.0 - i as f64 * 0.1);
                 v.id = i as u128;
                 TraversalValue::Vector(v)
@@ -768,7 +782,7 @@ mod tests {
 
         let vectors: Vec<TraversalValue> = (0..5)
             .map(|i| {
-                let data: Vec<f64> = (0..100).map(|j| if j == i { 1.0 } else { 0.0 }).collect();
+                let data: Vec<f32> = (0..100).map(|j| if j == i { 1.0 } else { 0.0 }).collect();
                 let mut v = alloc_vector(&arena, &data);
                 v.distance = Some(1.0 - i as f64 * 0.1);
                 v.id = i as u128;

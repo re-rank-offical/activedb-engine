@@ -97,7 +97,7 @@ fn test_delete_existing_vector() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let vector: Vec<f64> = vec![0.1, 0.2, 0.3, 0.4];
+    let vector: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
     let data = arena.alloc_slice_copy(&vector);
     let inserted = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -124,7 +124,7 @@ fn test_deleted_vector_excluded_from_search() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let target_vector: Vec<f64> = vec![1.0, 0.0, 0.0, 0.0];
+    let target_vector: Vec<f32> = vec![1.0, 0.0, 0.0, 0.0];
     let data = arena.alloc_slice_copy(&target_vector);
     let target = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -133,7 +133,7 @@ fn test_deleted_vector_excluded_from_search() {
     // Insert some other vectors
     for i in 0..5 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -180,7 +180,7 @@ fn test_delete_already_deleted_vector() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let vector: Vec<f64> = vec![0.1, 0.2, 0.3, 0.4];
+    let vector: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
     let data = arena.alloc_slice_copy(&vector);
     let inserted = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -213,7 +213,7 @@ fn test_get_vector_properties_existing() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let vector: Vec<f64> = vec![0.1, 0.2, 0.3, 0.4];
+    let vector: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
     let data = arena.alloc_slice_copy(&vector);
     let inserted = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -237,7 +237,7 @@ fn test_get_vector_properties_deleted() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let vector: Vec<f64> = vec![0.1, 0.2, 0.3, 0.4];
+    let vector: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
     let data = arena.alloc_slice_copy(&vector);
     let inserted = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -260,7 +260,7 @@ fn test_get_full_vector_existing() {
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
     let arena = Bump::new();
-    let vector: Vec<f64> = vec![0.1, 0.2, 0.3, 0.4];
+    let vector: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
     let data = arena.alloc_slice_copy(&vector);
     let inserted = index
         .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -298,7 +298,7 @@ fn test_get_all_vectors_with_level_filter() {
     // Insert multiple vectors
     for i in 0..10 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -331,7 +331,7 @@ fn test_search_k_zero() {
     // Insert some vectors
     for i in 0..5 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -359,7 +359,7 @@ fn test_search_k_exceeds_total() {
     // Insert exactly 5 vectors
     for i in 0..5 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -406,7 +406,7 @@ fn test_search_after_deletions() {
     // Insert 10 vectors
     for i in 0..10 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let inserted = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -450,7 +450,7 @@ fn test_search_with_filter_predicate() {
     // Insert vectors
     for i in 0..10 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)
@@ -486,7 +486,7 @@ fn test_search_label_filtering() {
     // Insert vectors with label "vector_a"
     for i in 0..5 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector_a", data, None, &arena)
@@ -496,7 +496,7 @@ fn test_search_label_filtering() {
     // Insert vectors with label "vector_b"
     for i in 0..5 {
         let arena = Bump::new();
-        let vector: Vec<f64> = vec![0.5 + 0.1 * i as f64, 0.2, 0.3, 0.4];
+        let vector: Vec<f32> = vec![0.5 + 0.1 * i as f32, 0.2, 0.3, 0.4];
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector_b", data, None, &arena)
@@ -537,7 +537,7 @@ fn test_hnsw_insert_and_count() {
     let mut txn = env.write_txn().unwrap();
     let index = VectorCore::new(&env, &mut txn, HNSWConfig::new(None, None, None)).unwrap();
 
-    let vector: Vec<f64> = (0..4).map(|_| rand::rng().random_range(0.0..1.0)).collect();
+    let vector: Vec<f32> = (0..4).map(|_| rand::rng().random_range(0.0..1.0)).collect();
     for _ in 0..10 {
         let arena = Bump::new();
         let data = arena.alloc_slice_copy(&vector);
@@ -560,7 +560,7 @@ fn test_hnsw_search_returns_results() {
     let mut rng = rand::rng();
     for _ in 0..128 {
         let arena = Bump::new();
-        let vector: Vec<f64> = (0..4).map(|_| rng.random_range(0.0..1.0)).collect();
+        let vector: Vec<f32> = (0..4).map(|_| rng.random_range(0.0..1.0)).collect();
         let data = arena.alloc_slice_copy(&vector);
         let _ = index
             .insert::<Filter>(&mut txn, "vector", data, None, &arena)

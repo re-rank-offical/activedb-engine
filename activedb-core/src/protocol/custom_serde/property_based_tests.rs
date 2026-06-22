@@ -54,9 +54,9 @@ mod property_based_tests {
     }
 
     // Strategy for generating vector data
-    fn arb_vector_data() -> impl Strategy<Value = Vec<f64>> {
+    fn arb_vector_data() -> impl Strategy<Value = Vec<f32>> {
         prop::collection::vec(
-            any::<f64>().prop_filter("Not NaN", |f| !f.is_nan()),
+            any::<f32>().prop_filter("Not NaN", |f| !f.is_nan()),
             1..128, // 1 to 128 dimensions
         )
     }

@@ -518,8 +518,8 @@ mod edge_case_tests {
         let arena = Bump::new();
         let id = 800800u128;
 
-        // Subnormal (denormalized) numbers
-        let data = vec![f64::MIN_POSITIVE, f64::MIN_POSITIVE / 2.0, 1e-308, 1e-320];
+        // Subnormal (denormalized) numbers (f32 range)
+        let data = vec![f32::MIN_POSITIVE, f32::MIN_POSITIVE / 2.0, 1e-40, 1e-44];
 
         let vector = create_simple_vector(&arena, id, "subnormal", &data);
         let props_bytes = bincode::serialize(&vector).unwrap();
@@ -680,7 +680,7 @@ mod edge_case_tests {
     fn test_vector_with_8192_dimensions() {
         let arena = Bump::new();
         let id = 707707u128;
-        let data: Vec<f64> = (0..8192).map(|i| (i as f64) * 0.0001).collect();
+        let data: Vec<f32> = (0..8192).map(|i| (i as f32) * 0.0001).collect();
 
         let vector = create_simple_vector(&arena, id, "8k_dims", &data);
         let props_bytes = bincode::serialize(&vector).unwrap();
@@ -782,7 +782,7 @@ mod edge_case_tests {
     fn test_vector_max_complexity() {
         let arena = Bump::new();
         let id = u128::MAX;
-        let data: Vec<f64> = (0..2048).map(|i| (i as f64).sin()).collect();
+        let data: Vec<f32> = (0..2048).map(|i| (i as f32).sin()).collect();
 
         let props: Vec<(&str, Value)> = (0..200)
             .map(|i| {

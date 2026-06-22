@@ -499,7 +499,7 @@ impl HNSW for VectorCore {
     fn search<'db, 'arena, 'txn, F>(
         &self,
         txn: &'txn RoTxn<'db>,
-        query: &'arena [f64],
+        query: &'arena [f32],
         k: usize,
         label: &'arena str,
         filter: Option<&'arena [F]>,
@@ -569,7 +569,7 @@ impl HNSW for VectorCore {
         &'db self,
         txn: &'txn mut RwTxn<'db>,
         label: &'arena str,
-        data: &'arena [f64],
+        data: &'arena [f32],
         properties: Option<ImmutablePropertiesMap<'arena>>,
         arena: &'arena bumpalo::Bump,
     ) -> Result<HVector<'arena>, VectorError>

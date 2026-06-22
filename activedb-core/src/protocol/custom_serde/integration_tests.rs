@@ -390,7 +390,7 @@ mod integration_tests {
 
         let vectors: Vec<HVector> = (0..15)
             .map(|i| {
-                let data = vec![i as f64, (i + 1) as f64, (i + 2) as f64];
+                let data = vec![i as f32, (i + 1) as f32, (i + 2) as f32];
                 create_simple_vector(&arena, i as u128, &format!("vec_{}", i), &data)
             })
             .collect();

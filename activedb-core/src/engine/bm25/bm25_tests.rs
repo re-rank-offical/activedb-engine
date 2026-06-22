@@ -1925,7 +1925,7 @@ mod tests {
         let vectors = generate_random_vectors(800, 650);
         let mut arena = Bump::new();
         for vec in &vectors {
-            let slice = arena.alloc_slice_copy(vec.as_slice());
+            let slice = arena.alloc_slice_fill_iter(vec.iter().map(|&x| x as f32));
             let _ = storage
                 .vectors
                 .insert::<fn(&HVector, &RoTxn) -> bool>(&mut wtxn, "vector", slice, None, &arena);
@@ -1970,7 +1970,7 @@ mod tests {
         let vectors = generate_random_vectors(800, 650);
         let mut arena = Bump::new();
         for vec in &vectors {
-            let slice = arena.alloc_slice_copy(vec.as_slice());
+            let slice = arena.alloc_slice_fill_iter(vec.iter().map(|&x| x as f32));
             let _ = storage
                 .vectors
                 .insert::<fn(&HVector, &RoTxn) -> bool>(&mut wtxn, "vector", slice, None, &arena);
@@ -2016,7 +2016,7 @@ mod tests {
         let vectors = generate_random_vectors(800, 650);
         let mut arena = Bump::new();
         for vec in &vectors {
-            let slice = arena.alloc_slice_copy(vec.as_slice());
+            let slice = arena.alloc_slice_fill_iter(vec.iter().map(|&x| x as f32));
             let _ = storage
                 .vectors
                 .insert::<fn(&HVector, &RoTxn) -> bool>(&mut wtxn, "vector", slice, None, &arena);

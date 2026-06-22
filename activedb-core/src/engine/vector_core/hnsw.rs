@@ -18,7 +18,7 @@ pub trait HNSW {
     fn search<'db, 'arena, 'txn, F>(
         &'db self,
         txn: &'txn RoTxn<'db>,
-        query: &'arena [f64],
+        query: &'arena [f32],
         k: usize,
         label: &'arena str,
         filter: Option<&'arena [F]>,
@@ -44,7 +44,7 @@ pub trait HNSW {
         &'db self,
         txn: &'txn mut RwTxn<'db>,
         label: &'arena str,
-        data: &'arena [f64],
+        data: &'arena [f32],
         properties: Option<ImmutablePropertiesMap<'arena>>,
         arena: &'arena bumpalo::Bump,
     ) -> Result<HVector<'arena>, VectorError>

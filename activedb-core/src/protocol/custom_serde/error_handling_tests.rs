@@ -582,7 +582,7 @@ mod error_handling_tests {
         let id = 987654u128;
 
         // Vector with NaN, infinity, and other special values
-        let data = vec![f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -0.0];
+        let data = vec![f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 0.0, -0.0];
         let vector = create_simple_vector(&arena, id, "special", &data);
 
         let props_bytes = bincode::serialize(&vector).unwrap();

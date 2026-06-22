@@ -138,7 +138,7 @@ mod vector_serialization_tests {
     fn test_vector_data_to_bytes_128d() {
         let arena = Bump::new();
         let id = 111111u128;
-        let data: Vec<f64> = (0..128).map(|i| i as f64 * 0.1).collect();
+        let data: Vec<f32> = (0..128).map(|i| i as f32 * 0.1).collect();
 
         let vector = create_simple_vector(&arena, id, "vector_128", &data);
         let bytes = vector.vector_data_to_bytes().unwrap();
@@ -150,7 +150,7 @@ mod vector_serialization_tests {
     fn test_vector_data_to_bytes_384d() {
         let arena = Bump::new();
         let id = 222222u128;
-        let data: Vec<f64> = (0..384).map(|i| i as f64 * 0.01).collect();
+        let data: Vec<f32> = (0..384).map(|i| i as f32 * 0.01).collect();
 
         let vector = create_simple_vector(&arena, id, "vector_384", &data);
         let bytes = vector.vector_data_to_bytes().unwrap();
@@ -162,7 +162,7 @@ mod vector_serialization_tests {
     fn test_vector_data_to_bytes_1536d() {
         let arena = Bump::new();
         let id = 333333u128;
-        let data: Vec<f64> = (0..1536).map(|i| (i as f64).sin()).collect();
+        let data: Vec<f32> = (0..1536).map(|i| (i as f32).sin()).collect();
 
         let vector = create_simple_vector(&arena, id, "vector_1536", &data);
         let bytes = vector.vector_data_to_bytes().unwrap();
@@ -173,7 +173,7 @@ mod vector_serialization_tests {
     #[test]
     fn test_cast_raw_vector_data_128d() {
         let arena = Bump::new();
-        let original_data: Vec<f64> = (0..128).map(|i| i as f64).collect();
+        let original_data: Vec<f32> = (0..128).map(|i| i as f32).collect();
         let raw_bytes = create_vector_bytes(&original_data);
 
         let casted_data = HVector::cast_raw_vector_data(&arena, &raw_bytes);
@@ -543,7 +543,7 @@ mod vector_serialization_tests {
     fn test_vector_large_dimension_4096() {
         let arena = Bump::new();
         let id = 951753u128;
-        let data: Vec<f64> = (0..4096).map(|i| i as f64 * 0.001).collect();
+        let data: Vec<f32> = (0..4096).map(|i| i as f32 * 0.001).collect();
 
         let vector = create_simple_vector(&arena, id, "4096d", &data);
 
