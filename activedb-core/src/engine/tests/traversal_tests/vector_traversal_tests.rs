@@ -706,7 +706,7 @@ fn test_v_from_type_after_migration() {
             .unwrap();
 
         // Add actual vector data with proper key format
-        let vector_data1: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let vector_data1: Vec<f32> = vec![1.0, 2.0, 3.0];
         let bytes1: Vec<u8> = vector_data1.iter().flat_map(|f| f.to_be_bytes()).collect();
         let key1 = [
             b"v:".as_slice(),
@@ -732,7 +732,7 @@ fn test_v_from_type_after_migration() {
             .unwrap();
 
         // Add actual vector data with proper key format
-        let vector_data2: Vec<f64> = vec![4.0, 5.0, 6.0];
+        let vector_data2: Vec<f32> = vec![4.0, 5.0, 6.0];
         let bytes2: Vec<u8> = vector_data2.iter().flat_map(|f| f.to_be_bytes()).collect();
         let key2 = [
             b"v:".as_slice(),
@@ -757,7 +757,7 @@ fn test_v_from_type_after_migration() {
             .unwrap();
 
         // Add actual vector data with proper key format
-        let vector_data3: Vec<f64> = vec![7.0, 8.0, 9.0];
+        let vector_data3: Vec<f32> = vec![7.0, 8.0, 9.0];
         let bytes3: Vec<u8> = vector_data3.iter().flat_map(|f| f.to_be_bytes()).collect();
         let key3 = [
             b"v:".as_slice(),

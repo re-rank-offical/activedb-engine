@@ -258,10 +258,10 @@ mod error_handling_tests {
     }
 
     #[test]
-    #[should_panic(expected = "is not a multiple of size_of::<f64>()")]
+    #[should_panic(expected = "is not a multiple of size_of::<f32>()")]
     fn test_vector_misaligned_data_bytes_panics() {
         let arena = Bump::new();
-        // 7 bytes is not a multiple of 8 (size of f64)
+        // 7 bytes is not a multiple of 4 (size of f32)
         let misaligned: &[u8] = &[0, 1, 2, 3, 4, 5, 6];
         HVector::cast_raw_vector_data(&arena, misaligned);
     }

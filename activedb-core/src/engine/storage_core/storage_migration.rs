@@ -223,7 +223,7 @@ pub(crate) fn convert_all_vectors(
     Ok(())
 }
 
-/// Converts a single vector's endianness by reading f64 values in source endianness
+/// Converts a single vector's endianness by reading f32 values in source endianness
 /// and writing them in native endianness. Uses arena for allocations.
 pub(crate) fn convert_vector_endianness<'arena>(
     bytes: &[u8],
@@ -237,35 +237,35 @@ pub(crate) fn convert_vector_endianness<'arena>(
         return Ok(&[]);
     }
 
-    if !bytes.len().is_multiple_of(mem::size_of::<f64>()) {
+    if !bytes.len().is_multiple_of(mem::size_of::<f32>()) {
         return Err(GraphError::New(
-            "Vector data length is not a multiple of f64 size".to_string(),
+            "Vector data length is not a multiple of f32 size".to_string(),
         ));
     }
 
-    let num_floats = bytes.len() / mem::size_of::<f64>();
+    let num_floats = bytes.len() / mem::size_of::<f32>();
 
-    // Allocate space for the converted f64 array in the arena
-    let layout = alloc::Layout::array::<f64>(num_floats)
+    // Allocate space for the converted f32 array in the arena
+    let layout = alloc::Layout::array::<f32>(num_floats)
         .map_err(|_| GraphError::New("Failed to create array layout".to_string()))?;
 
     let data_ptr: ptr::NonNull<u8> = arena.alloc_layout(layout);
 
-    let converted_floats: &'arena [f64] = unsafe {
-        let float_ptr: ptr::NonNull<f64> = data_ptr.cast();
+    let converted_floats: &'arena [f32] = unsafe {
+        let float_ptr: ptr::NonNull<f32> = data_ptr.cast();
         let float_slice = slice::from_raw_parts_mut(float_ptr.as_ptr(), num_floats);
 
-        // Read each f64 in the source endianness and write in native endianness
+        // Read each f32 in the source endianness and write in native endianness
         for (i, float) in float_slice.iter_mut().enumerate() {
-            let start = i * mem::size_of::<f64>();
-            let end = start + mem::size_of::<f64>();
-            let float_bytes: [u8; 8] = bytes[start..end]
+            let start = i * mem::size_of::<f32>();
+            let end = start + mem::size_of::<f32>();
+            let float_bytes: [u8; 4] = bytes[start..end]
                 .try_into()
-                .map_err(|_| GraphError::New("Failed to extract f64 bytes".to_string()))?;
+                .map_err(|_| GraphError::New("Failed to extract f32 bytes".to_string()))?;
 
             let value = match source_endianness {
-                VectorEndianness::BigEndian => f64::from_be_bytes(float_bytes),
-                VectorEndianness::LittleEndian => f64::from_le_bytes(float_bytes),
+                VectorEndianness::BigEndian => f32::from_be_bytes(float_bytes),
+                VectorEndianness::LittleEndian => f32::from_le_bytes(float_bytes),
             };
 
             *float = value;

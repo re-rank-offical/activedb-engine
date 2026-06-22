@@ -52,8 +52,8 @@ fn setup_test_storage() -> (ActiveDBGraphStorage, TempDir) {
 }
 
 /// Create test vector data in a specific endianness
-fn create_test_vector_bytes(values: &[f64], endianness: VectorEndianness) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(values.len() * 8);
+fn create_test_vector_bytes(values: &[f32], endianness: VectorEndianness) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(values.len() * 4);
     for &value in values {
         let value_bytes = match endianness {
             VectorEndianness::BigEndian => value.to_be_bytes(),
@@ -64,13 +64,13 @@ fn create_test_vector_bytes(values: &[f64], endianness: VectorEndianness) -> Vec
     bytes
 }
 
-/// Read f64 values from bytes in a specific endianness
-fn read_f64_values(bytes: &[u8], endianness: VectorEndianness) -> Vec<f64> {
-    let mut values = Vec::with_capacity(bytes.len() / 8);
-    for chunk in bytes.chunks_exact(8) {
+/// Read f32 values from bytes in a specific endianness
+fn read_f32_values(bytes: &[u8], endianness: VectorEndianness) -> Vec<f32> {
+    let mut values = Vec::with_capacity(bytes.len() / 4);
+    for chunk in bytes.chunks_exact(4) {
         let value = match endianness {
-            VectorEndianness::BigEndian => f64::from_be_bytes(chunk.try_into().unwrap()),
-            VectorEndianness::LittleEndian => f64::from_le_bytes(chunk.try_into().unwrap()),
+            VectorEndianness::BigEndian => f32::from_be_bytes(chunk.try_into().unwrap()),
+            VectorEndianness::LittleEndian => f32::from_le_bytes(chunk.try_into().unwrap()),
         };
         values.push(value);
     }
@@ -105,7 +105,7 @@ fn populate_test_vectors(
     for i in 0..count {
         let id = i as u128;
         let vector_data =
-            create_test_vector_bytes(&[i as f64, (i + 1) as f64, (i + 2) as f64], endianness);
+            create_test_vector_bytes(&[i as f32, (i + 1) as f32, (i + 2) as f32], endianness);
 
         storage
             .vectors
@@ -154,17 +154,17 @@ fn set_metadata(
     Ok(())
 }
 
-/// Read all vectors from storage and return as f64 values
+/// Read all vectors from storage and return as f32 values
 fn read_all_vectors(
     storage: &ActiveDBGraphStorage,
     endianness: VectorEndianness,
-) -> Result<Vec<Vec<f64>>, GraphError> {
+) -> Result<Vec<Vec<f32>>, GraphError> {
     let txn = storage.graph_env.read_txn()?;
     let mut all_vectors = Vec::new();
 
     for kv in storage.vectors.vectors_db.iter(&txn)? {
         let (_, value) = kv?;
-        let values = read_f64_values(value, endianness);
+        let values = read_f32_values(value, endianness);
         all_vectors.push(values);
     }
 
@@ -234,14 +234,14 @@ fn test_convert_vector_endianness_empty_input() {
 #[test]
 fn test_convert_vector_endianness_single_f64() {
     let arena = bumpalo::Bump::new();
-    let value: f64 = 3.14159;
+    let value: f32 = 3.14159;
     let big_endian_bytes = value.to_be_bytes();
 
     let result =
         convert_vector_endianness(&big_endian_bytes, VectorEndianness::BigEndian, &arena).unwrap();
 
     // Result should be in native endianness
-    let native_value = f64::from_ne_bytes(result.try_into().unwrap());
+    let native_value = f32::from_ne_bytes(result.try_into().unwrap());
     assert_eq!(native_value, value);
 }
 
@@ -255,9 +255,9 @@ fn test_convert_vector_endianness_multiple_f64s() {
         convert_vector_endianness(&big_endian_bytes, VectorEndianness::BigEndian, &arena).unwrap();
 
     // Read back values in native endianness
-    let result_values: Vec<f64> = result
-        .chunks_exact(8)
-        .map(|chunk| f64::from_ne_bytes(chunk.try_into().unwrap()))
+    let result_values: Vec<f32> = result
+        .chunks_exact(4)
+        .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
         .collect();
 
     for (original, converted) in values.iter().zip(result_values.iter()) {
@@ -290,9 +290,9 @@ fn test_convert_vector_endianness_roundtrip() {
         convert_vector_endianness(&big_endian_bytes, VectorEndianness::BigEndian, &arena).unwrap();
 
     // Read values back
-    let result_values: Vec<f64> = native_bytes
-        .chunks_exact(8)
-        .map(|chunk| f64::from_ne_bytes(chunk.try_into().unwrap()))
+    let result_values: Vec<f32> = native_bytes
+        .chunks_exact(4)
+        .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
         .collect();
 
     for (original, converted) in values.iter().zip(result_values.iter()) {
@@ -306,11 +306,11 @@ fn test_convert_vector_endianness_special_values() {
     let special_values = vec![
         0.0,
         -0.0,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-        f64::MIN,
-        f64::MAX,
-        f64::EPSILON,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::MIN,
+        f32::MAX,
+        f32::EPSILON,
     ];
 
     let big_endian_bytes = create_test_vector_bytes(&special_values, VectorEndianness::BigEndian);
@@ -318,9 +318,9 @@ fn test_convert_vector_endianness_special_values() {
     let result =
         convert_vector_endianness(&big_endian_bytes, VectorEndianness::BigEndian, &arena).unwrap();
 
-    let result_values: Vec<f64> = result
-        .chunks_exact(8)
-        .map(|chunk| f64::from_ne_bytes(chunk.try_into().unwrap()))
+    let result_values: Vec<f32> = result
+        .chunks_exact(4)
+        .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
         .collect();
 
     for (original, converted) in special_values.iter().zip(result_values.iter()) {
@@ -339,9 +339,9 @@ fn test_convert_vector_endianness_from_little_endian() {
         convert_vector_endianness(&little_endian_bytes, VectorEndianness::LittleEndian, &arena)
             .unwrap();
 
-    let result_values: Vec<f64> = result
-        .chunks_exact(8)
-        .map(|chunk| f64::from_ne_bytes(chunk.try_into().unwrap()))
+    let result_values: Vec<f32> = result
+        .chunks_exact(4)
+        .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
         .collect();
 
     for (original, converted) in values.iter().zip(result_values.iter()) {
@@ -485,7 +485,7 @@ fn test_migrate_pre_metadata_to_native() {
     assert_eq!(vectors.len(), 10);
 
     for (i, vector) in vectors.iter().enumerate() {
-        let expected = vec![i as f64, (i + 1) as f64, (i + 2) as f64];
+        let expected = vec![i as f32, (i + 1) as f32, (i + 2) as f32];
         assert_eq!(vector, &expected);
     }
 }
@@ -837,12 +837,12 @@ use proptest::prelude::*;
 proptest! {
     #[test]
     fn proptest_endianness_conversion_preserves_values(
-        values in prop::collection::vec(prop::num::f64::ANY, 1..100)
+        values in prop::collection::vec(prop::num::f32::ANY, 1..100)
     ) {
         let arena = bumpalo::Bump::new();
 
         // Filter out NaN for equality comparison
-        let values: Vec<f64> = values.into_iter().filter(|v| !v.is_nan()).collect();
+        let values: Vec<f32> = values.into_iter().filter(|v| !v.is_nan()).collect();
         if values.is_empty() {
             return Ok(());
         }
@@ -854,9 +854,9 @@ proptest! {
             let result = convert_vector_endianness(&source_bytes, source_endianness, &arena)
                 .expect("conversion should succeed");
 
-            let result_values: Vec<f64> = result
-                .chunks_exact(8)
-                .map(|chunk| f64::from_ne_bytes(chunk.try_into().unwrap()))
+            let result_values: Vec<f32> = result
+                .chunks_exact(4)
+                .map(|chunk| f32::from_ne_bytes(chunk.try_into().unwrap()))
                 .collect();
 
             prop_assert_eq!(values.len(), result_values.len());
@@ -876,7 +876,7 @@ proptest! {
 
         let result = convert_vector_endianness(&bytes, VectorEndianness::BigEndian, &arena);
 
-        if byte_count % 8 == 0 {
+        if byte_count % 4 == 0 {
             prop_assert!(result.is_ok());
         } else {
             prop_assert!(result.is_err());

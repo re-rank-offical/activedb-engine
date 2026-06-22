@@ -19,6 +19,10 @@ pub enum AlgorithmResult {
     Cycles(CycleResult),
     /// 연결 컴포넌트 (WCC, SCC)
     Components(Vec<ComponentResult>),
+    /// 노드별 임베딩 벡터 (FastRP, Node2Vec, Weisfeiler-Lehman)
+    NodeEmbeddings(Vec<NodeEmbedding>),
+    /// 노드별 중복 커뮤니티 할당 (SLPA)
+    OverlappingCommunities(Vec<OverlappingCommunity>),
 }
 
 #[derive(Debug, Serialize)]
@@ -63,6 +67,18 @@ pub struct CycleResult {
 pub struct ComponentResult {
     pub component_id: u64,
     pub node_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NodeEmbedding {
+    pub node_id: String,
+    pub embedding: Vec<f64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OverlappingCommunity {
+    pub node_id: String,
+    pub community_ids: Vec<u64>,
 }
 
 /// UUID u128을 문자열로 변환하는 헬퍼
