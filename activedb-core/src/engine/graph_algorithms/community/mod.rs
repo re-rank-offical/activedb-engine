@@ -1,5 +1,8 @@
 pub mod louvain;
 pub mod label_propagation;
+pub mod slpa;
+pub mod map_equation;
+pub mod k_means;
 pub mod connected_components;
 pub mod k_core;
 pub mod triangle_count;

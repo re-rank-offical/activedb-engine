@@ -6,3 +6,14 @@ f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\community
 f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\community\map_equation.rs
 f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\community\k_means.rs
 f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\embeddings\mod.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\embeddings\fast_rp.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\embeddings\node2vec.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\embeddings\weisfeiler_lehman.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\link_prediction\jaccard_prediction.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\centrality\mod.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\community\mod.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\link_prediction\mod.rs
+f:\active DB\activedb-engine\activedb-core\src\engine\graph_algorithms\mod.rs
+f:\active DB\activedb-engine\activedb-core\src\gateway\builtin\algorithms.rs
+f:\active DB\activedb-engine\activedb-core\src\gateway\builtin\algorithms.rs
+f:\active DB\activedb-engine\activedb-core\src\gateway\builtin\algorithms.rs

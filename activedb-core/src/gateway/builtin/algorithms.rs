@@ -6,22 +6,32 @@ use crate::engine::{
     graph_algorithms::{
         access::GraphAccess,
         centrality::{
+            article_rank::{article_rank, ArticleRankConfig},
             betweenness::betweenness_centrality,
             closeness::closeness_centrality,
             degree::{degree_centrality, DegreeType},
             eigenvector::eigenvector_centrality,
             harmonic::harmonic_centrality,
+            influence_maximization::{influence_maximization, InfluenceConfig},
             pagerank::{pagerank, PageRankConfig},
         },
         community::{
             clustering_coefficient::clustering_coefficient,
             connected_components::{strongly_connected_components, weakly_connected_components},
             k_core::k_core_decomposition,
+            k_means::{k_means, KMeansConfig},
             label_propagation::label_propagation,
             louvain::louvain,
+            map_equation::{map_equation, MapEquationConfig},
+            slpa::{slpa, SlpaConfig},
             triangle_count::triangle_count,
         },
         compact_graph::CompactGraph,
+        embeddings::{
+            fast_rp::{fast_rp, FastRpConfig},
+            node2vec::{node2vec, Node2VecConfig},
+            weisfeiler_lehman::{weisfeiler_lehman, WlConfig},
+        },
         path_ext::{
             cycle_detection::detect_cycle,
             max_flow::max_flow,
@@ -39,14 +49,17 @@ use crate::engine::{
             preferential_attachment::preferential_attachment_all,
             resource_allocation::resource_allocation_all,
             total_neighbors::total_neighbors_all,
+            jaccard_prediction::jaccard_prediction_all,
         },
         classification::{
             graph_coloring::greedy_coloring,
+            knn::knn_classify,
             maximal_independent_set::maximal_independent_set,
         },
         result_types::{
             node_id_to_string, scores_to_sorted_vec, AlgorithmResult, ComponentResult,
-            CycleResult, EdgeResult, NodeCommunity, NodeScore, PairScore, ScalarResult,
+            CycleResult, EdgeResult, NodeCommunity, NodeEmbedding, NodeScore,
+            OverlappingCommunity, PairScore, ScalarResult,
         },
         similarity::{
             cosine_neighbor::cosine_neighbor_similarity_all,
@@ -1010,4 +1023,315 @@ pub fn algo_maximal_independent_set(input: HandlerInput) -> Result<protocol::Res
 
 inventory::submit! {
     HandlerSubmission(Handler::new("algo_maximal_independent_set", algo_maximal_independent_set, false))
+}
+
+// ============================================================================
+// Helper: 임베딩 맵 → NodeEmbedding Vec
+// ============================================================================
+
+fn embeddings_to_vec(
+    embeddings: std::collections::HashMap<u128, Vec<f64>>,
+) -> Vec<NodeEmbedding> {
+    embeddings
+        .into_iter()
+        .map(|(id, embedding)| NodeEmbedding {
+            node_id: node_id_to_string(id),
+            embedding,
+        })
+        .collect()
+}
+
+// ============================================================================
+// Article Rank (Centrality)
+// ============================================================================
+
+pub fn algo_article_rank(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = ArticleRankConfig {
+        damping: parse_f64(&params, "damping", 0.85),
+        max_iterations: parse_usize(&params, "iterations", 20),
+        tolerance: parse_f64(&params, "tolerance", 1e-6),
+    };
+
+    let scores = article_rank(&graph, &config)?;
+    let result = AlgorithmResult::NodeScores(scores_to_sorted_vec(&scores));
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_article_rank", algo_article_rank, false))
+}
+
+// ============================================================================
+// Influence Maximization (Centrality)
+// ============================================================================
+
+pub fn algo_influence_maximization(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = InfluenceConfig {
+        k: parse_usize(&params, "k", 5),
+        propagation_prob: parse_f64(&params, "propagation_prob", 0.1),
+        mc_simulations: parse_usize(&params, "mc_simulations", 100),
+    };
+
+    let (seeds, total_spread) = influence_maximization(&graph, &config)?;
+    let response = json!({
+        "total_spread": total_spread,
+        "seeds": seeds.into_iter().map(|s| json!({
+            "node_id": node_id_to_string(s.node_id),
+            "marginal_gain": s.marginal_gain
+        })).collect::<Vec<_>>()
+    });
+
+    Ok(protocol::Response {
+        body: sonic_rs::to_vec(&json!({ "result": response }))
+            .map_err(|e| GraphError::New(e.to_string()))?,
+        fmt: Default::default(),
+    })
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_influence_maximization", algo_influence_maximization, false))
+}
+
+// ============================================================================
+// SLPA (Community, 중복 커뮤니티)
+// ============================================================================
+
+pub fn algo_slpa(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = SlpaConfig {
+        iterations: parse_usize(&params, "iterations", 100),
+        threshold: parse_f64(&params, "threshold", 0.1),
+    };
+
+    let communities = slpa(&graph, &config)?;
+    let result = AlgorithmResult::OverlappingCommunities(
+        communities
+            .into_iter()
+            .map(|(id, comms)| OverlappingCommunity {
+                node_id: node_id_to_string(id),
+                community_ids: comms,
+            })
+            .collect(),
+    );
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_slpa", algo_slpa, false))
+}
+
+// ============================================================================
+// Map Equation / Infomap (Community)
+// ============================================================================
+
+pub fn algo_map_equation(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = MapEquationConfig {
+        max_iterations: parse_usize(&params, "max_iterations", 50),
+    };
+
+    let communities = map_equation(&graph, &config)?;
+    let result = AlgorithmResult::NodeCommunities(
+        communities
+            .into_iter()
+            .map(|(id, comm)| NodeCommunity {
+                node_id: node_id_to_string(id),
+                community_id: comm,
+            })
+            .collect(),
+    );
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_map_equation", algo_map_equation, false))
+}
+
+// ============================================================================
+// K-Means (Community, 구조적 특징 기반)
+// ============================================================================
+
+pub fn algo_k_means(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = KMeansConfig {
+        k: parse_usize(&params, "k", 4),
+        max_iterations: parse_usize(&params, "max_iterations", 50),
+    };
+
+    let communities = k_means(&graph, &config)?;
+    let result = AlgorithmResult::NodeCommunities(
+        communities
+            .into_iter()
+            .map(|(id, comm)| NodeCommunity {
+                node_id: node_id_to_string(id),
+                community_id: comm,
+            })
+            .collect(),
+    );
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_k_means", algo_k_means, false))
+}
+
+// ============================================================================
+// FastRP (Embeddings)
+// ============================================================================
+
+pub fn algo_fast_rp(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = FastRpConfig {
+        dimension: parse_usize(&params, "dimension", 64),
+        iterations: parse_usize(&params, "iterations", 3),
+    };
+
+    let embeddings = fast_rp(&graph, &config)?;
+    let result = AlgorithmResult::NodeEmbeddings(embeddings_to_vec(embeddings));
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_fast_rp", algo_fast_rp, false))
+}
+
+// ============================================================================
+// Node2Vec (Embeddings)
+// ============================================================================
+
+pub fn algo_node2vec(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = Node2VecConfig {
+        dimension: parse_usize(&params, "dimension", 64),
+        walk_length: parse_usize(&params, "walk_length", 20),
+        num_walks: parse_usize(&params, "num_walks", 10),
+        window: parse_usize(&params, "window", 5),
+        p: parse_f64(&params, "p", 1.0),
+        q: parse_f64(&params, "q", 1.0),
+    };
+
+    let embeddings = node2vec(&graph, &config)?;
+    let result = AlgorithmResult::NodeEmbeddings(embeddings_to_vec(embeddings));
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_node2vec", algo_node2vec, false))
+}
+
+// ============================================================================
+// Weisfeiler-Lehman (Embeddings)
+// ============================================================================
+
+pub fn algo_weisfeiler_lehman(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+
+    let config = WlConfig {
+        iterations: parse_usize(&params, "iterations", 3),
+        dimension: parse_usize(&params, "dimension", 64),
+    };
+
+    let embeddings = weisfeiler_lehman(&graph, &config)?;
+    let result = AlgorithmResult::NodeEmbeddings(embeddings_to_vec(embeddings));
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_weisfeiler_lehman", algo_weisfeiler_lehman, false))
+}
+
+// ============================================================================
+// Jaccard Prediction (Link Prediction)
+// ============================================================================
+
+pub fn algo_jaccard_prediction(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+    let top_k = parse_usize(&params, "top_k", 100);
+
+    let pairs = jaccard_prediction_all(&graph, top_k)?;
+    let result = AlgorithmResult::PairScores(
+        pairs
+            .into_iter()
+            .map(|(a, b, score)| PairScore {
+                node_a: node_id_to_string(a),
+                node_b: node_id_to_string(b),
+                score,
+            })
+            .collect(),
+    );
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_jaccard_prediction", algo_jaccard_prediction, false))
+}
+
+// ============================================================================
+// KNN Node Classification (Classification)
+// ============================================================================
+
+pub fn algo_knn(input: HandlerInput) -> Result<protocol::Response, GraphError> {
+    let params = parse_params(&input.request.body);
+    let edge_label = parse_edge_label(&params);
+    let graph = build_compact_graph(&input, edge_label.as_ref())?;
+    let k = parse_usize(&params, "k", 3);
+
+    // labels: { "<uuid>": <u64 label>, ... }
+    let labels_obj = params
+        .get("labels")
+        .and_then(|v| v.as_object())
+        .ok_or_else(|| GraphError::AlgorithmError("labels object is required".to_string()))?;
+
+    let mut labels: std::collections::HashMap<usize, u64> = std::collections::HashMap::new();
+    for (key, value) in labels_obj.iter() {
+        let node_id = parse_node_id(key)?;
+        if let Some(idx) = graph.to_idx(node_id) {
+            if let Some(label) = value.as_u64() {
+                labels.insert(idx, label);
+            }
+        }
+    }
+
+    let classified = knn_classify(&graph, &labels, k)?;
+    let result = AlgorithmResult::NodeCommunities(
+        classified
+            .into_iter()
+            .map(|(id, label)| NodeCommunity {
+                node_id: node_id_to_string(id),
+                community_id: label,
+            })
+            .collect(),
+    );
+    json_response(&result)
+}
+
+inventory::submit! {
+    HandlerSubmission(Handler::new("algo_knn", algo_knn, false))
 }
