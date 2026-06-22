@@ -256,97 +256,57 @@ impl VectorCore {
         Ok(())
     }
 
-    /// Selects up to `m_limit` neighbours for `base` from `cands` using the HNSW
-    /// neighbour-selection heuristic (Malkov & Yashunin 2016, Algorithm 4).
-    ///
-    /// A candidate is kept only if it is closer to `base` than to every neighbour
-    /// already selected. This diversity pruning is what makes the graph navigable
-    /// and is the main driver of recall (replacing the previous "nearest-M" pick).
-    ///
-    /// * `extend` enables `extendCandidates` (also consider candidates' neighbours).
-    /// * Pruned candidates back-fill the result up to `m_limit`
-    ///   (`keepPrunedConnections`) so connectivity is preserved.
-    fn select_neighbors<'db: 'arena, 'arena: 'txn, 'txn, F>(
-        &self,
+    fn select_neighbors<'db: 'arena, 'arena: 'txn, 'txn, 's, F>(
+        &'db self,
         txn: &'txn RoTxn<'db>,
         label: &'arena str,
-        base: &HVector<'arena>,
-        cands: BinaryHeap<'arena, HVector<'arena>>,
-        m_limit: usize,
+        query: &'s HVector<'arena>,
+        mut cands: BinaryHeap<'arena, HVector<'arena>>,
         level: usize,
-        extend: bool,
+        should_extend: bool,
         filter: Option<&[F]>,
         arena: &'arena bumpalo::Bump,
     ) -> Result<BinaryHeap<'arena, HVector<'arena>>, VectorError>
     where
         F: Fn(&HVector<'arena>, &RoTxn<'db>) -> bool,
     {
-        // Gather unique candidates, each scored by its distance to `base`.
-        let mut seen: HashSet<u128> = HashSet::new();
-        let mut work: Vec<HVector<'arena>> = Vec::new();
+        let m = self.config.m;
 
-        let candidate_ids: Vec<u128> = cands.iter().map(|c| c.id).collect();
-        for mut c in cands {
-            if c.id == base.id || !seen.insert(c.id) {
-                continue;
-            }
-            c.set_distance(base.distance_to(&c)?);
-            work.push(c);
+        if !should_extend {
+            return Ok(cands.take_inord(m));
         }
-        // extendCandidates: also pull in the neighbours of each candidate.
-        if extend {
-            for cid in candidate_ids {
-                for mut n in self.get_neighbors(txn, label, cid, level, filter, arena)? {
-                    if n.id == base.id || !seen.insert(n.id) {
-                        continue;
-                    }
-                    n.set_distance(base.distance_to(&n)?);
-                    work.push(n);
+
+        let mut visited: HashSet<u128> = HashSet::new();
+        let mut result = BinaryHeap::with_capacity(arena, m * cands.len());
+        for candidate in cands.iter() {
+            for mut neighbor in
+                self.get_neighbors(txn, label, candidate.id, level, filter, arena)?
+            {
+                if !visited.insert(neighbor.id) {
+                    continue;
+                }
+
+                neighbor.set_distance(neighbor.distance_to(query)?);
+
+                /*
+                let passes_filters = match filter {
+                    Some(filter_slice) => filter_slice.iter().all(|f| f(&neighbor, txn)),
+                    None => true,
+                };
+
+                if passes_filters {
+                    result.push(neighbor);
+                }
+                */
+
+                if filter.is_none() || filter.unwrap().iter().all(|f| f(&neighbor, txn)) {
+                    result.push(neighbor);
                 }
             }
         }
 
-        // Process candidates nearest-to-`base` first.
-        work.sort_by(|a, b| {
-            a.get_distance()
-                .partial_cmp(&b.get_distance())
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        let mut selected: Vec<HVector<'arena>> = Vec::with_capacity(m_limit);
-        let mut pruned: Vec<HVector<'arena>> = Vec::new();
-        for c in work {
-            if selected.len() >= m_limit {
-                break;
-            }
-            let dist_to_base = c.get_distance();
-            // Keep `c` only if it is closer to `base` than to any selected neighbour.
-            let mut diverse = true;
-            for r in &selected {
-                if c.distance_to(r)? < dist_to_base {
-                    diverse = false;
-                    break;
-                }
-            }
-            if diverse {
-                selected.push(c);
-            } else {
-                pruned.push(c);
-            }
-        }
-        // keepPrunedConnections: back-fill from the closest pruned candidates.
-        for c in pruned {
-            if selected.len() >= m_limit {
-                break;
-            }
-            selected.push(c);
-        }
-
-        let mut result = BinaryHeap::with_capacity(arena, selected.len());
-        for c in selected {
-            result.push(c);
-        }
-        Ok(result)
+        result.extend(cands);
+        Ok(result.take_inord(m))
     }
 
     fn search_level<'db: 'arena, 'arena: 'txn, 'txn, 'q, F>(
@@ -656,45 +616,19 @@ impl HNSW for VectorCore {
                 "emtpy search result".to_string(),
             ))?;
 
-            // Connect q to up to M diverse neighbours (heuristic).
-            let neighbors = self.select_neighbors::<F>(
-                txn,
-                label,
-                &query,
-                nearest,
-                self.config.m,
-                level,
-                false,
-                None,
-                arena,
-            )?;
+            let neighbors =
+                self.select_neighbors::<F>(txn, label, &query, nearest, level, true, None, arena)?;
             self.set_neighbours(txn, query.id, &neighbors, level)?;
 
-            // Prune each neighbour's connections back to the layer cap, relative to
-            // that neighbour itself (Mmax0 on level 0, Mmax above), and only when it
-            // actually exceeds the cap.
-            let m_max = if level == 0 {
-                self.config.m_max_0
-            } else {
-                self.config.m
-            };
             for e in neighbors {
-                let e_conns = self.get_neighbors::<F>(txn, label, e.id, level, None, arena)?;
-                if e_conns.len() <= m_max {
-                    continue;
-                }
-                let e_new_conn = self.select_neighbors::<F>(
-                    txn,
-                    label,
-                    &e,
-                    BinaryHeap::from(arena, e_conns),
-                    m_max,
-                    level,
-                    false,
-                    None,
+                let id = e.id;
+                let e_conns = BinaryHeap::from(
                     arena,
-                )?;
-                self.set_neighbours(txn, e.id, &e_new_conn, level)?;
+                    self.get_neighbors::<F>(txn, label, id, level, None, arena)?,
+                );
+                let e_new_conn = self
+                    .select_neighbors::<F>(txn, label, &query, e_conns, level, true, None, arena)?;
+                self.set_neighbours(txn, id, &e_new_conn, level)?;
             }
         }
 
